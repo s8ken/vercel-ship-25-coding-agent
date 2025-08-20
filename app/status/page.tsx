@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { CheckCircle, XCircle, Clock, RefreshCw } from "lucide-react"
 
@@ -20,10 +20,20 @@ export default function StatusPage() {
     { name: "Chat Completion (Stream)", status: "pending", message: "Not tested" },
   ])
   const [isRunning, setIsRunning] = useState(false)
+  const [baseUrl, setBaseUrl] = useState("")
+  const [startTime, setStartTime] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setBaseUrl(window.location.origin)
+    }
+  }, [])
 
   const runTests = async () => {
+    if (!baseUrl) return // Don't run tests if baseUrl isn't set yet
+
     setIsRunning(true)
-    const baseUrl = window.location.origin
+    setStartTime(Date.now())
 
     // Test Models Endpoint
     await runTest("Models Endpoint", async () => {
@@ -115,8 +125,6 @@ export default function StatusPage() {
   }
 
   const runTest = async (testName: string, testFn: () => Promise<string>) => {
-    const startTime = Date.now()
-
     setTests((prev) =>
       prev.map((test) =>
         test.name === testName
@@ -127,13 +135,13 @@ export default function StatusPage() {
 
     try {
       const result = await testFn()
-      const duration = Date.now() - startTime
+      const duration = Date.now() - (startTime || 0)
 
       setTests((prev) =>
         prev.map((test) => (test.name === testName ? { ...test, status: "pass", message: result, duration } : test)),
       )
     } catch (error: any) {
-      const duration = Date.now() - startTime
+      const duration = Date.now() - (startTime || 0)
 
       setTests((prev) =>
         prev.map((test) =>
@@ -175,7 +183,7 @@ export default function StatusPage() {
           </div>
           <Button
             onClick={runTests}
-            disabled={isRunning}
+            disabled={isRunning || !baseUrl}
             className="border-4 border-black bg-blue-500 text-black font-bold px-6 py-3 h-auto"
             style={{ boxShadow: "4px 4px 0px 0px rgba(0,0,0,1)" }}
           >
@@ -229,13 +237,13 @@ export default function StatusPage() {
           <h2 className="text-2xl font-bold text-black mb-4">TEST COMMANDS</h2>
           <div className="space-y-2 text-sm font-mono">
             <div>
-              <strong>Models:</strong> curl -s {window.location.origin}/api/v1/models | jq
+              <strong>Models:</strong> curl -s {baseUrl || "[loading...]"}/api/v1/models | jq
             </div>
             <div>
-              <strong>Health:</strong> curl -s {window.location.origin}/api/agents/health | jq
+              <strong>Health:</strong> curl -s {baseUrl || "[loading...]"}/api/agents/health | jq
             </div>
             <div>
-              <strong>Chat:</strong> curl -s {window.location.origin}/api/v1/chat/completions -H 'Content-Type:
+              <strong>Chat:</strong> curl -s {baseUrl || "[loading...]"}/api/v1/chat/completions -H 'Content-Type:
               application/json' -d '
               {`{"model":"symbi-intel-analyst-001","messages":[{"role":"user","content":"Test"}]}`}' | jq
             </div>
